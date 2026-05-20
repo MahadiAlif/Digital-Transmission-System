@@ -26,8 +26,16 @@ for p = 1:numel(names)
 
         matchedTheory = theoreticalPamBer(M, cfg.EbN0dB);
         matchedEb = interpEbN0AtBer(cfg.EbN0dB, matchedTheory, cfg.berTarget);
-        [bestEb, bestIdx] = min(ebAtTarget);
-        bestBw = cfg.singlePoleBw(bestIdx);
+        valid = isfinite(ebAtTarget);
+        if any(valid)
+            validIdx = find(valid);
+            [bestEb, localIdx] = min(ebAtTarget(valid));
+            bestIdx = validIdx(localIdx);
+            bestBw = cfg.singlePoleBw(bestIdx);
+        else
+            bestEb = NaN;
+            bestBw = NaN;
+        end
 
         optimization.(pulseName).M(m).order = M;
         optimization.(pulseName).M(m).bandwidth = cfg.singlePoleBw;
@@ -42,14 +50,16 @@ for p = 1:numel(names)
         plot(cfg.singlePoleBw, ebAtTarget, 'o-', 'LineWidth', 1.3);
         hold on; grid on;
         yline(matchedEb, '--', 'Matched filter theory');
-        xline(bestBw, ':', sprintf('opt %.3g R_s', bestBw));
+        if isfinite(bestBw)
+            xline(bestBw, ':', sprintf('opt %.3g R_s', bestBw));
+        end
         xlabel('Single-pole -3 dB bandwidth / R_s');
         ylabel(sprintf('E_b/N_0 at BER = %.0e [dB]', cfg.berTarget));
         title(sprintf('%s, PAM-%d: single-pole bandwidth optimization', pulseName, M));
         saveas(fig, fullfile(cfg.resultsDir, ...
             sprintf('single_pole_bw_%s_M%d.png', pulseName, M)));
 
-        if M == 4
+        if M == 4 && isfinite(bestEb)
             [Bbest, Abest] = singlePoleImpulseInvariance(bestBw, cfg.SpS);
             plotEyeExamples(cfg, txPulse, Bbest, M, bestEb, ...
                 sprintf('singlepole_%s_M%d_best', pulseName, M), Abest);
