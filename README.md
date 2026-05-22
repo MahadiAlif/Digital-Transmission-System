@@ -185,6 +185,18 @@ The simulator produces:
 - eye diagrams for matched-filter and optimized single-pole receivers
 - `lab2_results.mat` containing the configuration and result structures
 
+## Final Report
+
+The completed TLC Lab 2 report is available at:
+
+```text
+documentation/final_project_report.pdf
+```
+
+The report includes the required matched-filter validation, spectral-domain
+filter synthesis evidence, PSD plots, eye diagrams, single-pole bandwidth
+optimization plots, and a numerical Eb/N0 penalty summary.
+
 ## How To Run
 
 Open MATLAB in the project folder and run:
