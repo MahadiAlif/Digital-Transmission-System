@@ -170,6 +170,13 @@ The simulator is organized as a clean engineering project rather than a single s
 ### Prerequisites
 * MATLAB R2023b or later (no external toolboxes needed).
 
+### Main Entry Point
+The main file to run is:
+
+```text
+TLC_Lab2_Project.m
+```
+
 ### Standard Execution
 Open MATLAB in the project directory and execute:
 
