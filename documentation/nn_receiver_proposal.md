@@ -88,3 +88,41 @@ graph TD
     
     style MLP fill:#18181b,stroke:#f59e0b,stroke-width:2px,color:#fff
 ```
+
+* **Inputs:** $7$ to $16$ received samples (or equalized samples).
+* **Hidden Layers:** $1$ or $2$ layers, $10$ to $20$ neurons each.
+* **Output Layer:** $1$ neuron predicting the residual distortion $\Delta(k)$ to subtract from the classical output.
+* **Why it is strong for a thesis:**
+  * **Graceful Degradation:** If the neural network encounters an SNR region it wasn't trained on, the system degrades gracefully back to the classical equalizer performance rather than failing catastrophically.
+
+---
+
+## 📊 Comparison Matrix
+
+| Metric / Dimension | Codex Two-Stage Proposal | Option A: MLP Equalizer (NLE) | Option B: MLP Classifier | Option C: Residual MLP |
+| :--- | :--- | :--- | :--- | :--- |
+| **Advisor Alignment** | Low (uses multiple MLPs outside filtering) | **High** (MLP acts directly as the filter/equalizer) | **High** (MLP replaces filter + decision) | **Medium** (Hybrid helper) |
+| **Hardware Feasibility** | Poor (variable latency, branching) | **Excellent** (deterministic, pipelined) | **Excellent** (deterministic, pipelined) | **Good** (requires parallel processing) |
+| **Training Complexity** | High (must train 2 models, label boundary cases) | **Low** (standard MSE regression) | **Medium** (Cross-entropy over $M$ classes) | **Low** (MSE regression on error residuals) |
+| **System Complexity** | High (complex control flow) | **Very Low** (standard filter replacement) | **Very Low** (direct classification) | **Medium** (parallel classical/NN paths) |
+| **Key Research Value** | Complex heuristics | Show performance under channel non-linearities | Approximating optimal decision boundaries | Graceful degradation under model mismatch |
+
+---
+
+## 📝 Recommended Thesis Methodology & Scenario
+
+For a thesis to be accepted by telecommunication professors, the use of Machine Learning must be justified by showing it solves a problem where classical methods struggle. Linear equalizers (like LMS) are already optimal for linear channels with AWGN. Therefore, your thesis should evaluate the MLP in a **non-linear channel scenario**.
+
+### Proposed Evaluation Setup
+1. **Channel Model:** 
+   * Add a **Non-Linear Amplifier (High Power Amplifier - HPA)** block in the transmitter using a standard model (e.g., Rapp or Saleh model) that introduces AM-to-AM and AM-to-PM amplitude distortion.
+   * Add a multipath channel causing linear ISI.
+2. **Receiver Baselines to Compare:**
+   * **Baseline 1:** Matched Filter + Zero Equalization (AWGN limit).
+   * **Baseline 2:** Matched Filter + Linear FFE (LMS) equalizer (shows that linear equalizers fail to resolve non-linear distortion).
+   * **Baseline 3 (Your Work):** Matched Filter + MLP-Based Non-Linear Equalizer (Option A).
+   * **Baseline 4 (Your Work):** Matched Filter + MLP Joint Classifier (Option B).
+3. **Key Performance Metrics:**
+   * **BER vs. $E_b/N_0$:** Plot curves for PAM-2, 4, 8 to find the $E_b/N_0$ gain of the MLP.
+   * **Decision Boundaries:** Plot 2D scatter plots of the received samples showing the linear boundaries of the LMS equalizer vs. the non-linear boundaries learned by the MLP.
+   * **Complexity Analysis:** Compare the number of multiplications and additions required per symbol for the LMS equalizer vs. the MLP.
