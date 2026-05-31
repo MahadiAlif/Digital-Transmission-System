@@ -44,6 +44,9 @@ function out = simulatePamAwgnWithDistortion(M, numBits, EbN0dB, SpS, txPulse, r
     w = zeros(numel(symbolsTx) * SpS, 1);
     w(1:SpS:end) = symbolsTx;
     xTx = filter(txPulse, 1, w);
+    if useNonLinearity
+        xTx = xTx - alpha * (xTx.^3);
+    end
     yClean = filter(rxB, rxA, xTx);
     sync = findBestPamSampling(yClean, symbolsTx, alphabet, SpS);
     out.samples = yClean;
