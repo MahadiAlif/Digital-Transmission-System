@@ -73,8 +73,47 @@ function results = runMlpAssistedValidation(cfg, pulses)
         bits_lms = pamGrayDemap(sym_lms, M, testOut.alphabet);
         ber_lms(k) = mean(bits_lms ~= testOut.symbolsTxBits);
         
-        % MLP stub
+        % C. MLP Equalization
+        y_mlp = mlp.predict(X_test, W1, b1, W2, b2, W3, b3);
+        sym_mlp = decideNearest(y_mlp, testOut.alphabet, testOut.alphabet);
+        bits_mlp = pamGrayDemap(sym_mlp, M, testOut.alphabet);
+        ber_mlp(k) = mean(bits_mlp ~= testOut.symbolsTxBits);
+        
+        fprintf('  Eb/N0 = %d dB | Baseline BER: %.5f | LMS BER: %.5f | MLP BER: %.5f\n', ...
+            EbN0_val, ber_none(k), ber_lms(k), ber_mlp(k));
     end
+    
+    % Save results structure
+    results.ebn0_list = ebn0_list;
+    results.ber_none = ber_none;
+    results.ber_lms = ber_lms;
+    results.ber_mlp = ber_mlp;
+    results.weights.W1 = W1;
+    results.weights.b1 = b1;
+    results.weights.W2 = W2;
+    results.weights.b2 = b2;
+    results.weights.W3 = W3;
+    results.weights.b3 = b3;
+    results.w_lms = w_lms;
+    
+    % 6. Plot results
+    fig = figure('Name', 'PAM-16 Equalizer BER Comparison', 'Color', 'w');
+    semilogy(ebn0_list, ber_none, 'r-o', 'LineWidth', 1.5, 'DisplayName', 'Single-Pole Rx (No Equalizer)');
+    hold on; grid on;
+    semilogy(ebn0_list, ber_lms, 'b-d', 'LineWidth', 1.5, 'DisplayName', 'LMS Linear Equalizer');
+    semilogy(ebn0_list, ber_mlp, 'g-s', 'LineWidth', 1.5, 'DisplayName', 'MLP Non-Linear Equalizer (NLE)');
+    
+    % Plot target BER line
+    yline(cfg.berTarget, 'k--', 'Target BER (10^{-3})', 'LineWidth', 1.0);
+    
+    xlabel('E_b/N_0 [dB]');
+    ylabel('Bit Error Rate (BER)');
+    title(sprintf('PAM-16 SRRC Performance under Severe ISI & Non-linearity (%s)', pulseName));
+    ylim([1e-4 1]);
+    legend('Location', 'southwest');
+    
+    saveas(fig, fullfile(cfg.resultsDir, 'equalizer_comparison_pam16.png'));
+    fprintf('Results plot saved to %s\n', fullfile(cfg.resultsDir, 'equalizer_comparison_pam16.png'));
 end
 
 function out = simulatePamAwgnWithDistortion(M, numBits, EbN0dB, SpS, txPulse, rxB, rxA, useNonLinearity, alpha)
