@@ -78,3 +78,78 @@ function X_feat = extractVolterraFeatures(samples, D)
         % Linear features
         X_feat(k, 1:numLinear) = win_rev.';
         
+        % Quadratic cross-products: y(k)*y(k-1), y(k-1)*y(k-2)...
+        quad = zeros(1, numQuadratic);
+        for d = 1:D
+            quad(d) = win_rev(d) * win_rev(d+1);
+        end
+        X_feat(k, numLinear + (1:numQuadratic)) = quad;
+        
+        % Cubic feature: y^3(k)
+        X_feat(k, end) = win_rev(1)^3;
+    end
+end
+```
+
+### Step 2: Multiplier-Free PWL Activation (in `utils/pwlTanh.m`)
+Implement the piecewise-linear tanh approximation. In hardware, multiplying by $0.5$ or $0.25$ is just a bit-shift (`>> 1` or `>> 2`), which requires no DSP multipliers.
+
+$$f(x) = \begin{cases} 
+-1, & x < -1.5 \\ 
+0.5x - 0.25, & -1.5 \le x < -0.5 \\
+x, & -0.5 \le x \le 0.5 \\
+0.5x + 0.25, & 0.5 < x \le 1.5 \\
+1, & x > 1.5
+\end{cases}$$
+
+```matlab
+function y = pwlTanh(x)
+    y = zeros(size(x));
+    
+    % Region 1: x < -1.5
+    y(x < -1.5) = -1;
+    
+    % Region 2: -1.5 <= x < -0.5 (y = 0.5*x - 0.25)
+    idx2 = (x >= -1.5) & (x < -0.5);
+    y(idx2) = 0.5 * x(idx2) - 0.25;
+    
+    % Region 3: -0.5 <= x <= 0.5 (y = x)
+    idx3 = (x >= -0.5) & (x <= 0.5);
+    y(idx3) = x(idx3);
+    
+    % Region 4: 0.5 < x <= 1.5 (y = 0.5*x + 0.25)
+    idx4 = (x > 0.5) & (x <= 1.5);
+    y(idx4) = 0.5 * x(idx4) + 0.25;
+    
+    % Region 5: x > 1.5
+    y(x > 1.5) = 1;
+end
+```
+
+### Step 3: Complexity Analysis Table (Mathematical Proof)
+To publish, you must prove the complexity reduction. You will present a table counting the number of real operations per symbol:
+
+| Equalizer Model | Multiplications | Additions | Non-linear Activations |
+| :--- | :---: | :---: | :---: |
+| **LMS Linear Equalizer** | $N_{taps}$ | $N_{taps}-1$ | $0$ |
+| **Volterra Equalizer (3rd Order)** | $N_{volterra}$ | $N_{volterra}-1$ | $0$ |
+| **Standard MLP (Float Tanh)** | $W \cdot H + H \cdot 1$ | $W \cdot H + H \cdot 1$ | $H$ CORDIC/Taylor Tanh (Expensive) |
+| **Proposed Volterra-PWL-MLP** | $V \cdot H_{small} + H_{small} \cdot 1$ | $V \cdot H_{small} + H_{small}$ | **$H_{small}$ Bit-Shifts & Comparisons (Cheap)** |
+
+*(Where $W$ is the input window size, $V$ is the small Volterra feature size, and $H$ is the number of hidden units. Typically $V \cdot H_{small} \ll W \cdot H$)*
+
+---
+
+## 📈 Suggested IEEE Journal Outlets
+
+For a master's student with a supervisor co-author, the best targets are **Letters journals** because they are short (4 to 5 pages), have fast turnaround times (typically 6-8 weeks for a decision), and focus on concrete, highly focused engineering improvements:
+
+1. **IEEE Communications Letters**
+   * *Scope:* High-quality, fast-turnaround communications papers.
+   * *Fit:* Excellent for baseband DSP and receiver equalization architectures.
+2. **IEEE Wireless Communications Letters**
+   * *Scope:* Short papers on physical-layer wireless systems.
+   * *Fit:* Good if you frame the PAM simulation as a backhaul or wireless link.
+3. **IEEE Photonics Technology Letters** (or *Journal of Lightwave Technology*)
+   * *Scope:* Optical communications hardware and DSP.
+   * *Fit:* Highly recommended if we frame the PAM-16 link as an **Intensity-Modulation Direct-Detection (IM/DD) short-reach optical interconnect**. This is where PAM-16 and non-linearities are most relevant in industry today.
